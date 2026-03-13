@@ -1,0 +1,281 @@
+name: Terraform Infrastructure
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'infra/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'infra/**'
+
+  # Allow manual trigger with environment selection
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to apply'
+        required: true
+        default: 'dev'
+        type: choice
+        options: [dev, staging, prod]
+      action:
+        description: 'Terraform action'
+        required: true
+        default: 'plan'
+        type: choice
+        options: [plan, apply, destroy]
+
+env:
+  TF_VERSION: '1.7.0'
+  AWS_REGION: 'ap-south-1'
+
+jobs:
+  # ─────────────────────────────────────────
+  # JOB 1: Terraform Plan (on every PR)
+  # Shows what WILL change before merging
+  # ─────────────────────────────────────────
+  terraform-plan:
+    name: Terraform Plan (${{ matrix.environment }})
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    strategy:
+      matrix:
+        environment: [dev, staging, prod]
+
+    permissions:
+      id-token: write   # needed for OIDC
+      contents: read
+      pull-requests: write  # to post plan as PR comment
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      # OIDC — no access keys stored anywhere
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform Init
+        working-directory: infra/aws/${{ matrix.environment }}
+        run: terraform init
+
+      - name: Terraform Validate
+        working-directory: infra/aws/${{ matrix.environment }}
+        run: terraform validate
+
+      - name: Terraform Plan
+        id: plan
+        working-directory: infra/aws/${{ matrix.environment }}
+        run: |
+          terraform plan \
+            -var="image_tag=${{ github.sha }}" \
+            -no-color \
+            -out=tfplan 2>&1 | tee plan_output.txt
+        continue-on-error: true  # post comment even if plan fails
+
+      # Post plan output as PR comment — reviewers see exactly what changes
+      - name: Post Plan as PR Comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('infra/aws/${{ matrix.environment }}/plan_output.txt', 'utf8');
+            const maxLength = 65000;
+            const truncated = plan.length > maxLength
+              ? plan.substring(0, maxLength) + '\n... (truncated)'
+              : plan;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## Terraform Plan — \`${{ matrix.environment }}\`\n\`\`\`hcl\n${truncated}\n\`\`\``
+            });
+
+  # ─────────────────────────────────────────
+  # JOB 2: Auto-apply dev on merge to main
+  # staging and prod require manual approval
+  # ─────────────────────────────────────────
+  terraform-apply-dev:
+    name: Apply — dev
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment: dev  # maps to GitHub environment (can add protection rules)
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform Init
+        working-directory: infra/aws/dev
+        run: terraform init
+
+      - name: Terraform Apply
+        working-directory: infra/aws/dev
+        run: |
+          terraform apply \
+            -var="image_tag=${{ github.sha }}" \
+            -auto-approve \
+            -no-color
+
+      # Print outputs after apply — ALB URL etc
+      - name: Print Outputs
+        working-directory: infra/aws/dev
+        run: terraform output
+
+  # ─────────────────────────────────────────
+  # JOB 3: Apply staging — requires approval
+  # GitHub Environment protection rule:
+  # add required reviewers in repo settings
+  # ─────────────────────────────────────────
+  terraform-apply-staging:
+    name: Apply — staging
+    runs-on: ubuntu-latest
+    needs: terraform-apply-dev
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment: staging  # <-- add required reviewer in GitHub settings
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform Init
+        working-directory: infra/aws/staging
+        run: terraform init
+
+      - name: Terraform Apply
+        working-directory: infra/aws/staging
+        run: |
+          terraform apply \
+            -var="image_tag=${{ github.sha }}" \
+            -auto-approve \
+            -no-color
+
+  # ─────────────────────────────────────────
+  # JOB 4: Apply prod — requires approval
+  # ─────────────────────────────────────────
+  terraform-apply-prod:
+    name: Apply — prod
+    runs-on: ubuntu-latest
+    needs: terraform-apply-staging
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment: prod   # <-- add required reviewer + wait timer in GitHub settings
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform Init
+        working-directory: infra/aws/prod
+        run: terraform init
+
+      - name: Terraform Apply
+        working-directory: infra/aws/prod
+        run: |
+          terraform apply \
+            -var="image_tag=${{ github.sha }}" \
+            -auto-approve \
+            -no-color
+
+  # ─────────────────────────────────────────
+  # JOB 5: Manual trigger (workflow_dispatch)
+  # For one-off plan/apply/destroy on any env
+  # ─────────────────────────────────────────
+  terraform-manual:
+    name: Manual — ${{ inputs.action }} (${{ inputs.environment }})
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    environment: ${{ inputs.environment }}
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform Init
+        working-directory: infra/aws/${{ inputs.environment }}
+        run: terraform init
+
+      - name: Terraform Plan
+        if: inputs.action == 'plan'
+        working-directory: infra/aws/${{ inputs.environment }}
+        run: terraform plan -no-color
+
+      - name: Terraform Apply
+        if: inputs.action == 'apply'
+        working-directory: infra/aws/${{ inputs.environment }}
+        run: terraform apply -auto-approve -no-color
+
+      - name: Terraform Destroy
+        if: inputs.action == 'destroy'
+        working-directory: infra/aws/${{ inputs.environment }}
+        run: terraform destroy -auto-approve -no-color
