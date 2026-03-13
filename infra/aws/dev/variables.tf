@@ -9,4 +9,7 @@ variable "tf_state_bucket" { type = string }
 variable "tf_lock_table" { type = string }
 variable "frontend_image" { type = string }
 variable "backend_image" { type = string }
-variable "image_tag" { type = string; default = "latest" }
+variable "image_tag" { 
+    type = string
+    default = "latest" 
+                    }

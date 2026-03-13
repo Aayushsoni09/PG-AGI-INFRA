@@ -15,7 +15,7 @@ terraform {
     key            = "aws/dev/terraform.tfstate"      # unique path per environment
     region         = "ap-south-1"
     encrypt        = true                             # encrypt state at rest
-    dynamodb_table = "pgagi-tfstate-lock"             # state locking table
+    use_lockfile = true             # state locking table
   }
 }
 

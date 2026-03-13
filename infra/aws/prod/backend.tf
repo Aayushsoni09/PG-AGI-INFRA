@@ -9,7 +9,7 @@ terraform {
     key            = "aws/prod/terraform.tfstate"   # isolated prod state
     region         = "ap-south-1"
     encrypt        = true
-    dynamodb_table = "pgagi-tfstate-lock"
+    use_lockfile = "pgagi-tfstate-lock"
   }
 }
 
