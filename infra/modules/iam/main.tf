@@ -31,15 +31,16 @@ resource "aws_iam_role" "github_actions" {
       }
       Action = "sts:AssumeRoleWithWebIdentity"
       Condition = {
-        StringLike = {
-          # Scoped to YOUR repo only — change this to your repo
-          "token.actions.githubusercontent.com:sub" = "repo:${var.github_org}/${var.github_repo}:*"
-        }
-        StringEquals = {
-          "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
-        }
+      StringLike = {
+        "token.actions.githubusercontent.com:sub" = [
+          "repo:Aayushsoni09/DevOps-Task-PG-AGI:*",
+          "repo:Aayushsoni09/PG-AGI-INFRA:*"
+        ]
       }
-    }]
+      StringEquals = {
+        "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
+      }
+    }}]
   })
 
   tags = var.tags
