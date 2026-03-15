@@ -48,7 +48,9 @@ resource "aws_ecs_task_definition" "frontend" {
   memory                   = var.frontend_memory
   execution_role_arn       = var.ecs_task_execution_role_arn  # pulls image, writes logs
   task_role_arn            = var.ecs_task_role_arn            # app permissions at runtime
-
+  lifecycle {
+    ignore_changes = [container_definitions]
+  }
   container_definitions = jsonencode([{
     name      = "frontend"
     image     = "${var.frontend_image}:${var.image_tag}"
@@ -100,7 +102,9 @@ resource "aws_ecs_task_definition" "backend" {
   memory                   = var.backend_memory
   execution_role_arn       = var.ecs_task_execution_role_arn
   task_role_arn            = var.ecs_task_role_arn
-
+  lifecycle {
+    ignore_changes = [container_definitions]
+  }
   container_definitions = jsonencode([{
     name      = "backend"
     image     = "${var.backend_image}:${var.image_tag}"

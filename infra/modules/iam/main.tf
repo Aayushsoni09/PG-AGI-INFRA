@@ -69,6 +69,7 @@ resource "aws_iam_role_policy" "github_actions" {
           "iam:ListAttachedRolePolicies",
           "iam:PassRole",
           "iam:GetOpenIDConnectProvider",
+          "iam:ListOpenIDConnectProviders",
           "iam:CreateOpenIDConnectProvider",
           "iam:DeleteOpenIDConnectProvider",
           "iam:TagOpenIDConnectProvider",
