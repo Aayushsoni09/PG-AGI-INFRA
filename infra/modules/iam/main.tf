@@ -55,31 +55,42 @@ resource "aws_iam_role_policy" "github_actions" {
     Version = "2012-10-17"
     Statement = [
       {
-        # ECS — update services with new image
-        Sid    = "ECSAccess"
+        Sid    = "TerraformFullAccess"
         Effect = "Allow"
         Action = [
-          "ecs:UpdateService",
-          "ecs:DescribeServices",
-          "ecs:DescribeTaskDefinition",
-          "ecs:RegisterTaskDefinition",
-          "ecs:ListTasks",
-          "ecs:DescribeTasks"
+          # EC2/VPC
+          "ec2:*",
+          # ECS
+          "ecs:*",
+          # IAM
+          "iam:GetRole",
+          "iam:CreateRole",
+          "iam:DeleteRole",
+          "iam:UpdateRole",
+          "iam:AttachRolePolicy",
+          "iam:DetachRolePolicy",
+          "iam:PutRolePolicy",
+          "iam:DeleteRolePolicy",
+          "iam:GetRolePolicy",
+          "iam:ListRolePolicies",
+          "iam:ListAttachedRolePolicies",
+          "iam:PassRole",
+          "iam:GetOpenIDConnectProvider",
+          "iam:CreateOpenIDConnectProvider",
+          "iam:DeleteOpenIDConnectProvider",
+          "iam:TagOpenIDConnectProvider",
+          # CloudWatch Logs
+          "logs:*",
+          # ELB
+          "elasticloadbalancing:*",
+          # Auto Scaling
+          "application-autoscaling:*",
+          # Secrets Manager
+          "secretsmanager:*"
         ]
         Resource = "*"
       },
       {
-        # Pass role to ECS task (needed for task definition updates)
-        Sid    = "PassRole"
-        Effect = "Allow"
-        Action = "iam:PassRole"
-        Resource = [
-          aws_iam_role.ecs_task_execution.arn,
-          aws_iam_role.ecs_task.arn
-        ]
-      },
-      {
-        # Terraform state — read/write S3
         Sid    = "TerraformState"
         Effect = "Allow"
         Action = [
@@ -94,15 +105,14 @@ resource "aws_iam_role_policy" "github_actions" {
         ]
       },
       {
-        # Terraform state locking — DynamoDB
         Sid    = "TerraformLock"
         Effect = "Allow"
         Action = [
-          "dynamodb:GetItem",
-          "dynamodb:PutItem",
-          "dynamodb:DeleteItem"
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:DeleteObject"
         ]
-        Resource = "arn:aws:dynamodb:${var.aws_region}:*:table/${var.tf_lock_table}"
+        Resource = "arn:aws:s3:::${var.tf_state_bucket}/.lock*"
       }
     ]
   })
