@@ -87,7 +87,19 @@ resource "aws_iam_role_policy" "github_actions" {
           # Auto Scaling
           "application-autoscaling:*",
           # Secrets Manager
-          "secretsmanager:*"
+          "secretsmanager:*",
+          # ECR
+          "ecr:GetAuthorizationToken",
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage",
+          "ecr:PutImage",
+          "ecr:InitiateLayerUpload",
+          "ecr:UploadLayerPart",
+          "ecr:CompleteLayerUpload",
+          "ecr:DescribeRepositories",
+          "ecr:CreateRepository",
+          "ecr:ListImages",
         ]
         Resource = "*"
       },
