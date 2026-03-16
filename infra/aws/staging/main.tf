@@ -41,7 +41,7 @@ module "loadbalancer" {
   vpc_id                     = module.networking.vpc_id
   public_subnet_ids          = module.networking.public_subnet_ids
   alb_security_group_id      = module.networking.alb_security_group_id
-  enable_deletion_protection = true   # staging: protect from accidental delete
+  enable_deletion_protection = false   
   tags                       = local.common_tags
 }
 
