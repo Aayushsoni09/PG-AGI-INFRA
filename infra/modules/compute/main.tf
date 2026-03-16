@@ -56,9 +56,6 @@ resource "aws_ecs_task_definition" "frontend" {
     name      = "frontend"
     image     = "${var.frontend_image}:${var.image_tag}"
     essential = true
-    repositoryCredentials = {
-      credentialsParameter = "arn:aws:secretsmanager:ap-south-1:381491835701:secret:pgagi/dev/dockerhub-hQvxyy"
-  }
     portMappings = [{
       containerPort = 3000
       protocol      = "tcp"
