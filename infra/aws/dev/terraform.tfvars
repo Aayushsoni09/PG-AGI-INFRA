@@ -19,6 +19,6 @@ tf_state_bucket = "pgagi-tfstate-monkweb009"
 tf_lock_table   = "pgagi-tfstate-lock"
 
 # ── Images ────────────────────────────────
-frontend_image = "monkweb009/pgagi-frontend"
-backend_image  = "monkweb009/pgagi-backend"
-image_tag      = "latest"        # CI will override this with git SHA
+frontend_image = "381491835701.dkr.ecr.ap-south-1.amazonaws.com/pgagi-frontend"
+backend_image  = "381491835701.dkr.ecr.ap-south-1.amazonaws.com/pgagi-backend"
+image_tag      = "latest"     # CI will override this with git SHA
