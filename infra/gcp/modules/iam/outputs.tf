@@ -1,6 +1,6 @@
 output "workload_identity_provider" {
   description = "Full provider name — use in GitHub Actions workflow"
-  value       = google_iam_workload_identity_pool_provider.github.name
+  value = local.workload_identity_provider_name
 }
 
 output "github_actions_service_account" {
