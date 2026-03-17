@@ -135,8 +135,8 @@ PG-AGI-INFRA/                ← separate infra repo
 ## Links
 
 - **Infrastructure Repository:** https://github.com/Aayushsoni09/PG-AGI-INFRA
-- **Architecture Documentation:** [Google Doc link]
-- **Demo Video:** [YouTube/Loom link]
+- **Architecture Documentation:** [[Google Doc link]](https://drive.google.com/file/d/11AqXN0vYgGNw6KhFQnzgXE4-_pJGhQy3/view?usp=drive_link)
+- **Demo Video:** [[YouTube/Loom link](https://youtu.be/QxN5ZWCJiCc)]
 
 ---
 
